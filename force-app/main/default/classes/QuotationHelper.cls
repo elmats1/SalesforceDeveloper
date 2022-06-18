@@ -2,12 +2,12 @@ public with sharing class QuotationHelper {
     
     public void initialConfig(){
         
-        Account compumundo = new Account();
-        compumundo.Name = 'Compumundo';
-        Account compuworld = new Account();
-        compuworld.Name = 'Compuworld';
-
         List<Account> accList = new List<Account>();
+        Account compumundo = new Account();
+        Account compuworld = new Account();
+        String Compuworld = compuworld.Name;
+        String Compumundo = compumundo.Name;
+
         accList.add(compumundo);
         accList.add(compuworld);
         
@@ -23,7 +23,6 @@ public with sharing class QuotationHelper {
         List<Inventario__c> invList = [
             SELECT Codigo_De_Producto__c, Name
             FROM Inventario__c];
-            //System.debug('Se está ejecutando la consulta de Inventario');
         return(invList);
     }
 
