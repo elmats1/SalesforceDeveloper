@@ -1,0 +1,29 @@
+<template>
+    <lightning-card title="Add Line Item" icon-name="standard:quotes">
+        <div class="slds-var-m-around_medium">
+            <c-search-box onsearch={handleSearch} product-code={productCode}></c-search-box>
+            <!--Product info-->
+            <template if:true={product}>
+                <c-output-field label="Product" value={product.Name}></c-output-field>
+                <c-output-field label="Price" value={product.Price}></c-output-field>
+                <c-output-field label="Available" value={product.Available}></c-output-field>
+                <c-output-field label="Code" value={product.ExternalId}></c-output-field>
+                <lightning-input name="quantity" label="Quantity" type="number" value={fields.quantity} step="1" min="1" max={product.Available} onchange={handleChange} required></lightning-input>
+            </template>
+            <!--Errors-->
+            <template if:true={notFound}>
+                <p class="slds-text-color_destructive">{notFound}</p>
+            </template>
+            <template if:true={error}>
+                <c-error-panel errors={error} type="inlineMessage"></c-error-panel>
+            </template>
+        </div>
+        <!--Footer buttons-->
+        <template if:true={product}>
+            <div slot="footer">
+                <lightning-button label="Cancel" onclick={handleReset}></lightning-button>                        
+                <lightning-button label="Add Product" variant="brand" onclick={handleAddProduct} class="slds-var-m-left_xx-small"></lightning-button>
+            </div>        
+        </template>
+    </lightning-card>
+</template>

@@ -1,13 +1,14 @@
 public with sharing class QuotationHelper {
     
     public void initialConfig(){
-        
+       
         List<Account> accList = new List<Account>();
         Account compumundo = new Account();
+        compumundo.Name = 'Compumundo';
         Account compuworld = new Account();
-        String Compuworld = compuworld.Name;
-        String Compumundo = compumundo.Name;
+        compuworld.Name = 'Compuworld';
 
+        List<Account> accList = new List<Account>();
         accList.add(compumundo);
         accList.add(compuworld);
         
@@ -21,8 +22,10 @@ public with sharing class QuotationHelper {
 
     public List<Inventario__c> productInInventory(){
         List<Inventario__c> invList = [
-            SELECT Codigo_De_Producto__c, Name
-            FROM Inventario__c];
+            SELECT Codigo_De_Producto__c, Name, Cantidad_disponible__c, Cantidad_Reservada__c, Last_Stock_Alert__c
+            FROM Inventario__c
+            LIMIT 200];
+            //System.debug('Se está ejecutando la consulta de Inventario');
         return(invList);
     }
 
@@ -45,7 +48,70 @@ public with sharing class QuotationHelper {
         }
         return avaQuantity;
     }
+
+    public void reservedQuantity(List<QuoteLineItem> item, Boolean isBefore, Boolean isAfter) {
+        Set<Id> idProduct = new Set<Id>();
+
+        for(QuoteLineItem i: item) {
+            idProduct.add(i.Product2Id);
+        }
+        Map<Id, Product2> prodMap = new Map<Id, Product2>([
+            SELECT Id, ExternalId, (SELECT Id, Cantidad_Reservada__c FROM Inventario__r)
+            FROM Product2
+            WHERE Id IN :idProduct
+        ]);
+        
+        if(isBefore) {
+            for(QuoteLineItem i : item) {
+                if(item.Quantity > searchProductByCode(prodMap.get(item.Product2Id).ExternalId)) {
+                    i.addError('Quantity cannot be greater than the Products Available Quantity');
+                }
+            }
+        } else if(isAfter) {
+            List<Inventario__c> invUpdate = new List<Inventario__c>();
+            for(QuoteLineItem i : item) {
+                Inventario__c invUp = prodMap.get(i.Product2Id).Inventario__r[0];
+                invUp.Cantidad_Reservada__c += i.Quantity;
+                invUpdate.add(invUp);
+            }
+            update invUpdate;
+        }
+    }
+
+    @invocableMethod(label= 'Stock Empty Alert')
+    public static void stockEmptyAlert() {
+        List<Inventario__c> inv = productInInventory();
+        List<Inventario__c> invUpdate = new List<Inventario__c>();
+        FeedItem post = new FeedItem();
+
+        post.parentId = UserInfo.getUserId();
+        post.isRichText = true;
+        post.body = 'El(los) producto(s): ';
+        
+        for (Inventario__c inventarios : inv) {
+            
+            Decimal quantity = inventarios.Cantidad_disponible__c - inventarios.Cantidad_Reservada__c;
+            Boolean isTime = inventarios.Last_Stock_Alert__c < Datetime.now().addHours(-5) || inventarios.Last_Stock_Alert__c == null;
+
+            if(quantity == 0 && isTime) {
+                post.body += '<a href="' + URL.getSalesforceBaseUrl().toExternalForm() + '/' + inventarios.Id + '">' + inventarios.Product__r.Name.escapeHtml4() + '</a>, ';
+                invUpdate.add(inventarios);
+            }
+        }
+
+        post.body = post.body.substring(0, post.body.length() - 2);
+        post.body += ' No hay existencia en inventario.';
+
+        if(post.body.length() > 59) {
+            insert post;
+        }
+
+        for(Inventario__c inventory : invUpdate) {
+            inventory.Last_Stock_Alert__c = Datetime.now();
+        }
+
+        if (!invUpdate.isEmpty()) {
+            update invUpdate;
+        }
+    }
 }
-/*
-Falta Postwork de Triggers con Apex en adelante, también hacer los preworks correspondientes y revisar los ejercicios que el profe deja de tarea
-*/
